@@ -21,20 +21,20 @@ const (
 type Builder struct {
 	files   []string
 	mode    Mode
-	out_dir string
+	src_dir string
 }
 
 func NewBuilder(mode Mode) Builder {
 	return Builder{
 		files:   make([]string, 0, 10),
 		mode:    mode,
-		out_dir: ".",
+		src_dir: ".",
 	}
 }
 
-func build(out_dir, file string) {
+func build(src_dir, file string) {
 	cmd := exec.Command("gcc", "-c", file)
-	cmd.Dir = out_dir
+	cmd.Dir = src_dir
 	fmt.Printf("Compiling %v\n", file)
 	if err := cmd.Run(); err != nil {
 		log.Fatal(err)
@@ -45,8 +45,8 @@ func (b *Builder) Build() error {
 	var out_file string
 	for _, file := range b.files {
 		out_file = strings.Split(file, ".")[0] + ".o"
-		if IsFileUpdated(b.out_dir, file, out_file) {
-			build(b.out_dir, file)
+		if IsFileUpdated(b.src_dir, file, out_file) {
+			build(b.src_dir, file)
 		}
 
 	}
@@ -57,7 +57,7 @@ func (b *Builder) Add(file_name string) {
 	b.files = append(b.files, file_name)
 }
 func (b *Builder) CurrentDir(path string) {
-	b.out_dir = path
+	b.src_dir = path
 }
 
 func GetTime(name string) (*time.Time, error) {
@@ -75,15 +75,15 @@ func GetTime(name string) (*time.Time, error) {
 	return &t, nil
 
 }
-func IsFileUpdated(out_dir, file_name, output_name string) bool {
-	t_file, err1 := GetTime(out_dir + "/" + file_name)
-	t_output, err2 := GetTime(out_dir + "/" + output_name)
+func IsFileUpdated(src_dir, file_name, output_name string) bool {
+	t_file, err1 := GetTime(src_dir + "/" + file_name)
+	t_output, err2 := GetTime(src_dir + "/" + output_name)
 
 	if err1 != nil {
 		log.Fatal(err1)
 	}
 	if err2 != nil {
-		build(out_dir, file_name)
+		build(src_dir, file_name)
 		return false
 	}
 
@@ -94,4 +94,19 @@ func IsFileUpdated(out_dir, file_name, output_name string) bool {
 	}
 	fmt.Printf("Up to date %v\n", file_name)
 	return false
+}
+
+// This set all files from current directory of builder
+func (b *Builder) SetFiles() {
+	files, err := os.ReadDir(b.src_dir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		if !file.IsDir() && strings.Split(file.Name(), ".")[1] == "c" {
+			b.files = append(b.files, file.Name())
+		}
+	}
+
 }
